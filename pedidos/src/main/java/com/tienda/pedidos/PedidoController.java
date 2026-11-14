@@ -1,8 +1,10 @@
 package com.tienda.pedidos;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.BeanPropertyRowMapper;
-import org.springframework.jdbc.core.JdbcTemplate;
+import com.tienda.pedidos.dto.PedidoRequestDTO;
+import com.tienda.pedidos.dto.PedidoResponseDTO;
+import com.tienda.pedidos.entity.Pedido;
+import com.tienda.pedidos.repository.PedidoRepository;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,70 +14,67 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 
-// CODIGO DE PARTIDA de la guia, tal cual: es el proyecto que se refactoriza en los commits siguientes
+// PASO INTERMEDIO de la refactorizacion: el SQL concatenado ya no existe (PedidoRepository) y la API
+// ya habla con DTOs, pero el calculo del descuento y el new del notificador siguen aqui. Salen al
+// servicio en el commit siguiente
 @RestController
 @RequestMapping("/api/pedidos")
 public class PedidoController {
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
+    private final PedidoRepository repo;
+
+    public PedidoController(PedidoRepository repo) {
+        this.repo = repo;
+    }
 
     @PostMapping
-    public Pedido crearPedido(@RequestBody Pedido pedido) {
-        // 1. Validar manualmente, sin Bean Validation
-        if (pedido.getClienteEmail() == null || pedido.getClienteEmail().isBlank()) {
-            throw new RuntimeException("El email del cliente es obligatorio");
-        }
-        if (pedido.getSubtotal() == null || pedido.getSubtotal() <= 0) {
-            throw new RuntimeException("El subtotal debe ser mayor a cero");
-        }
-
-        // 2. Calcular el descuento segun tipo de cliente (logica de negocio en el controller)
+    public PedidoResponseDTO crearPedido(@Valid @RequestBody PedidoRequestDTO dto) {
         double descuento;
-        if ("VIP".equalsIgnoreCase(pedido.getTipoCliente())) {
-            descuento = pedido.getSubtotal() * 0.15;
-        } else if ("MAYORISTA".equalsIgnoreCase(pedido.getTipoCliente())) {
-            descuento = pedido.getSubtotal() * 0.25;
+        if ("VIP".equalsIgnoreCase(dto.getTipoCliente())) {
+            descuento = dto.getSubtotal() * 0.15;
+        } else if ("MAYORISTA".equalsIgnoreCase(dto.getTipoCliente())) {
+            descuento = dto.getSubtotal() * 0.25;
         } else {
             descuento = 0.0;
         }
-        double baseConDescuento = pedido.getSubtotal() - descuento;
+        double baseConDescuento = dto.getSubtotal() - descuento;
         double iva = baseConDescuento * 0.19;
         double total = baseConDescuento + iva;
 
+        Pedido pedido = new Pedido();
+        pedido.setClienteEmail(dto.getClienteEmail());
+        pedido.setTipoCliente(dto.getTipoCliente().toUpperCase());
+        pedido.setSubtotal(dto.getSubtotal());
         pedido.setDescuento(descuento);
         pedido.setIva(iva);
         pedido.setTotal(total);
         pedido.setEstado("CREADO");
-        pedido.setFechaCreacion(LocalDateTime.now());
         pedido.setNotasInternas("Pedido creado automaticamente, revisar stock antes de despachar");
+        pedido.setFechaCreacion(LocalDateTime.now());
+        Pedido guardado = repo.save(pedido);
 
-        // 3. Persistir con SQL embebido y concatenado directamente en el controller
-        String sql = "INSERT INTO pedido (cliente_email, tipo_cliente, subtotal, descuento, iva, total, "
-                    + "estado, notas_internas, fecha_creacion) VALUES ('" + pedido.getClienteEmail() + "', '"
-                    + pedido.getTipoCliente() + "', " + pedido.getSubtotal() + ", " + descuento + ", " + iva
-                    + ", " + total + ", 'CREADO', '" + pedido.getNotasInternas() + "', NOW())";
-        jdbcTemplate.update(sql);
-
-        // 4. Enviar correo de confirmacion, dependencia creada con "new", no inyectada
         NotificacionEmailService notificador = new NotificacionEmailService();
-        notificador.enviar(pedido.getClienteEmail(), "Tu pedido fue creado. Total: " + total);
+        notificador.enviar(guardado.getClienteEmail(), "Tu pedido fue creado. Total: " + total);
+        System.out.println("Pedido creado para " + guardado.getClienteEmail());
 
-        // 5. Loggear con println
-        System.out.println("Pedido creado para " + pedido.getClienteEmail());
-
-        // 6. Devolver la ENTIDAD directamente como respuesta JSON (incluye notasInternas)
-        return pedido;
+        return toResponseDTO(guardado);
     }
 
     @GetMapping("/{id}")
-    public Pedido obtenerPedido(@PathVariable Long id) {
-        try {
-            String sql = "SELECT * FROM pedido WHERE id = " + id;
-            return jdbcTemplate.queryForObject(sql, new BeanPropertyRowMapper<>(Pedido.class));
-        } catch (Exception e) {
-            System.out.println("Error: " + e.getMessage());
-            return null; // el cliente recibe 200 OK con cuerpo vacio en vez de 404
-        }
+    public PedidoResponseDTO obtenerPedido(@PathVariable Long id) {
+        return repo.findById(id).map(this::toResponseDTO).orElse(null);
+    }
+
+    private PedidoResponseDTO toResponseDTO(Pedido p) {
+        PedidoResponseDTO dto = new PedidoResponseDTO();
+        dto.setId(p.getId());
+        dto.setClienteEmail(p.getClienteEmail());
+        dto.setTipoCliente(p.getTipoCliente());
+        dto.setSubtotal(p.getSubtotal());
+        dto.setDescuento(p.getDescuento());
+        dto.setIva(p.getIva());
+        dto.setTotal(p.getTotal());
+        dto.setEstado(p.getEstado());
+        return dto;
     }
 }
