@@ -1,6 +1,6 @@
 # Integracion continua del laboratorio.
 # - verificar: en cada push compila y corre la suite completa con JDK 17 y JDK 23.
-# - evidencias: solo mientras el repositorio aun no tiene capturas. Levanta el codigo de partida y la
+# - evidencias: cuando no hay capturas o el codigo cambio desde las ultimas. Levanta el codigo de partida y la
 #   aplicacion refactorizada, prueba los endpoints, toma las capturas y, si TODO paso, agrega el README.
 name: Pruebas
 
@@ -36,10 +36,16 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - name: Revisar si ya hay capturas
+      - name: Revisar si las capturas corresponden al codigo actual
         id: estado
         run: |
-          if [ -f capturas/swagger-ui.png ]; then echo "hacer=no" >> "$GITHUB_OUTPUT"; else echo "hacer=si" >> "$GITHUB_OUTPUT"; fi
+          # se regeneran si no existen o si pedidos/src cambio despues del commit que las agrego
+          ultima=$(git log -1 --format=%H -- capturas)
+          if [ -z "$ultima" ] || ! git diff --quiet "$ultima" HEAD -- pedidos/src; then
+            echo "hacer=si" >> "$GITHUB_OUTPUT"
+          else
+            echo "hacer=no" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-java@v5
         if: steps.estado.outputs.hacer == 'si'
         with:
@@ -59,9 +65,13 @@ jobs:
       - name: Agregar README y capturas
         if: steps.estado.outputs.hacer == 'si'
         run: |
+          if git cat-file -e HEAD:README.md 2>/dev/null; then
+            mensaje="docs: actualizar README y capturas con la ejecucion del codigo actual"
+          else
+            mensaje="docs: README final con resumen de ambas partes, decisiones de diseño y capturas"
+          fi
           git add README.md capturas
-          git -c user.name="Nicolas Sanchez" -c user.email="nicosanchezvil@gmail.com" \
-            commit -qm "docs: README final con resumen de ambas partes, decisiones de diseño y capturas"
+          git -c user.name="Nicolas Sanchez" -c user.email="nicosanchezvil@gmail.com" commit -qm "$mensaje"
           git push origin HEAD:main
       - name: Publicar los registros si algo fallo
         if: failure() && steps.estado.outputs.hacer == 'si'

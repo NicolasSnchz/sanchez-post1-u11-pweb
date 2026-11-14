@@ -105,6 +105,13 @@ for ruta, metodo, codigos in (("/api/pedidos", "post", {"201", "400"}), ("/api/p
     op = rutas.get(ruta, {}).get(metodo, {})
     exigir(codigos <= set(op.get("responses", {})), f"OpenAPI {metodo} {ruta}: respuestas {list(op.get('responses', {}))}")
     exigir(op.get("tags") == ["Pedidos"] and op.get("summary"), f"OpenAPI {metodo} {ruta}: sin @Tag o @Operation")
+# Cada respuesta de error con su propio ejemplo de ApiError (no el de 404 en un 400)
+def ejemplo(ruta, metodo, cod):
+    return json.dumps(rutas.get(ruta, {}).get(metodo, {}).get("responses", {}).get(cod, {}), ensure_ascii=False)
+exigir("Bad Request" in ejemplo("/api/pedidos", "post", "400") and "Not Found" not in ejemplo("/api/pedidos", "post", "400"),
+       "el 400 del POST no tiene su propio ejemplo")
+exigir("Not Found" in ejemplo("/api/pedidos/{id}", "get", "404"), "el 404 del GET no tiene su ejemplo")
+exigir("valor invalido" in ejemplo("/api/pedidos/{id}", "get", "400"), "el 400 del GET por id no tiene su ejemplo")
 esquema = docs.get("components", {}).get("schemas", {}).get("PedidoRequestDTO", {}).get("properties", {})
 exigir(esquema.get("tipoCliente", {}).get("enum") == ["REGULAR", "VIP", "MAYORISTA"], "@Schema de tipoCliente sin valores")
 exigir("notasInternas" not in json.dumps(docs.get("components", {})), "el OpenAPI menciona notasInternas")
@@ -121,7 +128,9 @@ for png in ("partida-antes", "compilacion", "post-exitoso", "errores-api", "logs
             "pruebas", "swagger-ui", "swagger-post", "swagger-get"):
     ruta = os.path.join(os.path.dirname(salida), "capturas", png + ".png")
     exigir(os.path.isfile(ruta) and os.path.getsize(ruta) > 5000, f"falta o esta vacia la captura {png}.png")
-sobrantes = [l for l in leer(f"{evid}/logs/arbol-despues.txt").splitlines() if l not in ("?? capturas/", "?? evid/")]
+# solo pueden aparecer capturas/ y evid/ (nuevas o modificadas si se estan regenerando)
+sobrantes = [l for l in leer(f"{evid}/logs/arbol-despues.txt").splitlines()
+             if not l[3:].startswith(("capturas/", "evid/"))]
 exigir(not sobrantes, "quedaron cambios en el arbol: " + "; ".join(sobrantes))
 
 datos = {
