@@ -5,12 +5,14 @@ import com.tienda.pedidos.dto.PedidoResponseDTO;
 import com.tienda.pedidos.entity.Pedido;
 import com.tienda.pedidos.exception.RecursoNoEncontradoException;
 import com.tienda.pedidos.repository.PedidoRepository;
+import com.tienda.pedidos.strategy.EstrategiaDescuento;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class PedidoServiceImpl implements PedidoService {
@@ -19,24 +21,23 @@ public class PedidoServiceImpl implements PedidoService {
 
     private final PedidoRepository repo;
     private final NotificacionService notificador;
+    private final Map<String, EstrategiaDescuento> estrategias;
 
-    // Todas las dependencias llegan por constructor (DIP): ningun new de un colaborador
-    public PedidoServiceImpl(PedidoRepository repo, NotificacionService notificador) {
+    // Todas las dependencias llegan por constructor (DIP): ningun new de un colaborador. Spring arma el
+    // mapa con cada EstrategiaDescuento usando el nombre del bean como llave (REGULAR, VIP, MAYORISTA)
+    public PedidoServiceImpl(PedidoRepository repo,
+                             NotificacionService notificador,
+                             Map<String, EstrategiaDescuento> estrategias) {
         this.repo = repo;
         this.notificador = notificador;
+        this.estrategias = estrategias;
     }
 
     @Override
     public PedidoResponseDTO crear(PedidoRequestDTO dto) {
-        // Calculo tal como estaba en el controller; en el commit siguiente pasa al patron Strategy
-        double descuento;
-        if ("VIP".equalsIgnoreCase(dto.getTipoCliente())) {
-            descuento = dto.getSubtotal() * 0.15;
-        } else if ("MAYORISTA".equalsIgnoreCase(dto.getTipoCliente())) {
-            descuento = dto.getSubtotal() * 0.25;
-        } else {
-            descuento = 0.0;
-        }
+        EstrategiaDescuento estrategia = estrategias.getOrDefault(
+            dto.getTipoCliente().toUpperCase(), estrategias.get("REGULAR"));
+        double descuento = estrategia.calcularDescuento(dto.getSubtotal());
         return guardar(dto, descuento);
     }
 
