@@ -155,11 +155,11 @@ Anotaciones usadas:
 - `@Tag`, `@Operation`, `@ApiResponse` y `@Parameter` en el [controller](pedidos/src/main/java/com/tienda/pedidos/controller/PedidoController.java);
 - `@Schema` con descripciones en español y ejemplos en los dos DTO y en `ApiError`.
 
-Las respuestas de error declaran su cuerpo `ApiError`. Swagger UI (`/swagger-ui.html`) muestra el grupo "Pedidos" con los **3 endpoints**:
+Cada respuesta de error declara su cuerpo `ApiError` con un ejemplo propio (el 400 de validación, el 400 de un id no numérico, el 404). Swagger UI (`/swagger-ui.html`) muestra el grupo "Pedidos" con los **3 endpoints**:
 
 ![Swagger UI con los tres endpoints](capturas/swagger-ui.png)
 
-POST expandido: descripción del cálculo, cuerpo de ejemplo y respuestas 201 y 400:
+POST expandido: descripción del cálculo, cuerpo de ejemplo y respuestas 201 y 400, cada una con su ejemplo:
 
 ![POST /api/pedidos en Swagger UI](capturas/swagger-post.png)
 
@@ -244,13 +244,13 @@ GET por id: parámetro con ejemplo y respuestas 200, 400 y 404:
 8. `docs: anotaciones de springdoc-openapi en controlador y DTO (parte 2)`
 9. `test: ...`: las pruebas automáticas.
 
-Después vienen el flujo de GitHub Actions (`ci:`) y este README con las capturas.
+Después vienen el flujo de GitHub Actions (`ci:`), este README con las capturas, y un ajuste para que cada respuesta de error tenga su propio ejemplo en Swagger. Ese ajuste cambió el código, así que el flujo volvió a generar las capturas y el README.
 
 Cada commit compila y pasa sus propias pruebas por sí solo; lo verifiqué commit por commit en el mismo flujo.
 
 ## Cómo se generaron las capturas
 
-El job `evidencias` de [`pruebas.yml`](.github/workflows/pruebas.yml) corrió una sola vez, con los scripts de [`.github/evidencias/`](.github/evidencias):
+El job `evidencias` de [`pruebas.yml`](.github/workflows/pruebas.yml) corre cuando no hay capturas o cuando el código de `pedidos/src` cambió desde las últimas, así que las capturas siempre corresponden al código del repositorio. Usa los scripts de [`.github/evidencias/`](.github/evidencias):
 
 1. Compiló y probó cada commit.
 2. Corrió la suite con JDK 17 y JDK 23.
