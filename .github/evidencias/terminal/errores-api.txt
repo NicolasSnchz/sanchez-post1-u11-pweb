@@ -1,0 +1,20 @@
+# DESPUES, Checkpoint 1 de la Parte 2: GlobalExceptionHandler responde siempre con ApiError
+# 404: id inexistente (antes: 200 con cuerpo vacio)
+curl -s localhost:8080/api/pedidos/999 -w '\nHTTP %{http_code}\n'
+
+# 400: body vacio, con todos los errores de validacion
+curl -s -X POST localhost:8080/api/pedidos -H 'Content-Type: application/json' -d '{}' -w '\nHTTP %{http_code}\n'
+
+# 400: sin subtotal (con solo @Positive de la guia pasaba la validacion y terminaba en un 500)
+curl -s -X POST localhost:8080/api/pedidos -H 'Content-Type: application/json' -d '{"clienteEmail":"ana@correo.com","tipoCliente":"VIP"}' -w '\nHTTP %{http_code}\n'
+
+# 400: email invalido y subtotal negativo
+curl -s -X POST localhost:8080/api/pedidos -H 'Content-Type: application/json' -d '{"clienteEmail":"ana","tipoCliente":"VIP","subtotal":-5}' -w '\nHTTP %{http_code}\n'
+
+# 400 y no 500: peticiones mal formadas
+curl -s localhost:8080/api/pedidos/abc -w '\nHTTP %{http_code}\n'
+curl -s localhost:8080/api/pedidos -w '\nHTTP %{http_code}\n'
+curl -s -X POST localhost:8080/api/pedidos -H 'Content-Type: application/json' -d '{"subtotal":' -w '\nHTTP %{http_code}\n'
+
+# 405 y no 500: metodo no soportado
+curl -s -X DELETE localhost:8080/api/pedidos/1 -w '\nHTTP %{http_code}\n'

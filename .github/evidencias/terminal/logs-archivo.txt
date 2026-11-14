@@ -1,0 +1,6 @@
+# DESPUES, Checkpoint 2 de la Parte 2: el RollingFileAppender escribe logs/pedidos.log con la fecha completa
+cd pedidos
+ls -l logs/
+grep 'com.tienda.pedidos' logs/pedidos.log | tail -n 30
+# notasInternas nunca se registra: ni el nombre del campo ni su contenido
+grep -c -e notasInternas -e 'revisar stock' logs/pedidos.log

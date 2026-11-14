@@ -1,0 +1,16 @@
+# DESPUES, Checkpoint 3 de la Parte 1: Strategy con los tres tipos de cliente (subtotal 100000, IVA 19 %)
+curl -s -X POST localhost:8080/api/pedidos -H 'Content-Type: application/json' -d '{"clienteEmail":"ana@correo.com","tipoCliente":"VIP","subtotal":100000}' -w '  HTTP %{http_code}\n'
+curl -s -X POST localhost:8080/api/pedidos -H 'Content-Type: application/json' -d '{"clienteEmail":"ana@correo.com","tipoCliente":"MAYORISTA","subtotal":100000}' -w '  HTTP %{http_code}\n'
+curl -s -X POST localhost:8080/api/pedidos -H 'Content-Type: application/json' -d '{"clienteEmail":"ana@correo.com","tipoCliente":"REGULAR","subtotal":100000}' -w '  HTTP %{http_code}\n'
+
+# Un tipo sin estrategia se cobra como REGULAR y deja un WARN en el log
+curl -s -X POST localhost:8080/api/pedidos -H 'Content-Type: application/json' -d '{"clienteEmail":"luis@correo.com","tipoCliente":"PLATINO","subtotal":50000}' -w '  HTTP %{http_code}\n'
+
+# El apostrofo que rompia el SQL concatenado: con JpaRepository es solo un dato
+curl -s -X POST localhost:8080/api/pedidos -H 'Content-Type: application/json' -d "{\"clienteEmail\":\"o'brien@correo.com\",\"tipoCliente\":\"VIP\",\"subtotal\":100000}" -w '  HTTP %{http_code}\n'
+
+# Consultas: por id y por cliente (findByClienteEmail). Ninguna respuesta trae notasInternas
+ID=$(curl -s "localhost:8080/api/pedidos?clienteEmail=ana@correo.com" | jq '.[-1].id')
+curl -s localhost:8080/api/pedidos/$ID -w '  HTTP %{http_code}\n'
+curl -s "localhost:8080/api/pedidos?clienteEmail=ana@correo.com" | jq -c '.[] | {id, tipoCliente, descuento, iva, total}'
+curl -s "localhost:8080/api/pedidos?clienteEmail=ana@correo.com" | grep -c notasInternas

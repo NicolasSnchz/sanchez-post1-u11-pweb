@@ -1,0 +1,3 @@
+# Suite automatica con el Maven Wrapper: estrategias, servicio (Mockito), capa web con el handler e integracion con H2
+cd pedidos
+./mvnw -B -ntp clean verify | grep -E 'Tests run:|BUILD|Total time'

@@ -1,0 +1,10 @@
+# DESPUES, Checkpoints 1 y 2 de la Parte 1: compila, capas separadas, sin SQL escrito a mano, DTO sin
+# notasInternas, ningun new de un colaborador y dependencias por constructor
+cd pedidos
+./mvnw -B -ntp clean compile | grep -E 'Compiling|BUILD|Total time'
+find src/main/java -name '*.java' | sort
+grep -rnE 'jdbcTemplate\.|"(INSERT|SELECT) ' src/main/java || echo '-> ninguna sentencia SQL escrita a mano'
+grep -rnE 'private .*notasInternas' src/main/java/com/tienda/pedidos/dto || echo '-> ningun DTO declara el campo notasInternas'
+grep -rnE 'new [A-Za-z]*(Service|Repository|Descuento)[A-Za-z]*\(' src/main/java || echo '-> ningun new de un colaborador'
+grep -rn 'System.out' src/main/java || echo '-> ningun System.out.println'
+grep -n -A3 'public PedidoServiceImpl(' src/main/java/com/tienda/pedidos/service/PedidoServiceImpl.java
